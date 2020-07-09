@@ -1,0 +1,4 @@
+PyPDF2
+pdfminer.six
+argparse
+tqdm
