@@ -30,19 +30,23 @@ def splitter(path, save=True):
 
     #split each page & save to separate file
     pdf = PdfFileReader(path)
-    for page in range(pdf.getNumPages()):
-        try:
-            pdf_writer = PdfFileWriter()
-            pdf_writer.addPage(pdf.getPage(page))
+    try:
+        for page in range(pdf.getNumPages()):
+            try:
+                pdf_writer = PdfFileWriter()
+                pdf_writer.addPage(pdf.getPage(page))
 
-            output_filename = 'split/{}.pdf'.format(page + 1)
+                output_filename = 'split/{}.pdf'.format(page + 1)
 
-            with open(output_filename, 'wb') as out:
-                pdf_writer.write(out)
+                with open(output_filename, 'wb') as out:
+                    pdf_writer.write(out)
 
-        except PdfReadError as e:
-            print(f'Read failed for page {page}')
-            print(e)
+            except PdfReadError as e:
+                print(f'Read failed for page {page}')
+                print(e)
+    except PdfReadError as e:
+        print(f'Read failed for path {path}')
+        print(e)
 
 # ---------------------------------------------------------------------------
 # Extract:
