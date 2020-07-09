@@ -7,7 +7,7 @@ pip install -r requirements.txt
 # Usage
 python pdf_extract.py
 
-the above will default to parsing all pdfs in 'samples' and outputting to 'output'. 
+the above will default to parsing all pdfs in 'samples' and save output txt files to 'output'. 
 Pass a path to a folder containing pdfs with --path_to_folder & change output folder with --out_path args
 
 E.G
