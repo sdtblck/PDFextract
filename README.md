@@ -1,5 +1,5 @@
 # PDFextract
-Extracting pdfs using pdfminer.six and pyPDF2
+Extracting text from pdfs using pdfminer.six and pyPDF2
 
 # Setup
 pip install -r requirements.txt
