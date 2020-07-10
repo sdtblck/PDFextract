@@ -77,7 +77,7 @@ def pdf_to_text(path):
     retstr.close()
     return text
 
-
+@profile
 def extract_main(out_name="Output", path_to_pdfs='split'):
     all_pdfs = glob.glob(f"{path_to_pdfs}/*.pdf")
     all_pdfs.sort()
@@ -112,6 +112,10 @@ if __name__ == "__main__":
     for pdf in tqdm.tqdm(all_pdfs, total=len(all_pdfs)):
         fname = os.path.split(pdf)[1][:-4]
         if args.no_split:
+            try:
+                os.makedirs('split')
+            except FileExistsError:
+                print('splitdir already exists')
             splitter(pdf)
             path_to_folder = 'split'
         extract_main(fname, path_to_folder)
