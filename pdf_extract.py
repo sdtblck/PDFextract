@@ -8,7 +8,7 @@ from pdfminer.pdfparser import PDFSyntaxError
 from PyPDF2.utils import PdfReadError
 from multiprocessing import Pool, cpu_count
 from itertools import repeat
-import argparse, tqdm, re, glob, os, istarmap
+import argparse, tqdm, re, glob, os, istarmap, sys
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ def pdf_to_text(path):
     try:
         for page in PDFPage.get_pages(filepath, check_extractable=True):
             interpreter.process_page(page)
-    except PDFSyntaxError as e:
+    except (PDFSyntaxError, TypeError) as e:
         print(f'ERROR: Extraction failed for {path} \n {e}')
 
     text = retstr.getvalue()
@@ -101,13 +101,18 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output"):
     # init pool with as many CPUs as available
     cpu_no = cpu_count() - 1
     p = Pool(cpu_no)
+
+    # Extract text from PDFS
     for _ in tqdm.tqdm(p.istarmap(extract_text_wrapper, zip(all_pdfs, out_names, repeat(out_path))),
                        total=len(all_pdfs), desc='pages', leave=False):
         pass
+
+    # merge text files
     with open(f"{out_path}/{out_name}.txt", 'w') as outfile:
         for fname in out_names:
             with open(f"{out_path}/{fname}.txt") as infile:
                 outfile.write(infile.read())
+
     for fname in out_names:
         os.remove(f"{out_path}/{fname}.txt")
 
@@ -115,7 +120,7 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output"):
 if __name__ == "__main__":
     # TODO: filtering / cleaning functions
     # TODO: program is very slow when processing a pdf with lots of images (I think it renders all images) - how to fix
-
+    print(sys.version)
     parser = argparse.ArgumentParser(description='CLI for PDFextract - extracts plaintext from PDF files')
     parser.add_argument('--path_to_folder', help='Path to folder containing pdfs', required=False, default='samples')
     parser.add_argument('--out_path', help='Output location for final .txt file', required=False, default='output')
@@ -126,12 +131,12 @@ if __name__ == "__main__":
 
     # make outdir
     try:
-        os.makedirs(args.out_path)
+        os.makedirs(args.out_path, exist_ok=True)
     except FileExistsError:
         print('Outdir already exists')
 
     try:
-        os.makedirs('split')
+        os.makedirs('split', exist_ok=True)
     except FileExistsError:
         print('splitdir already exists')
 
