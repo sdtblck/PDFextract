@@ -1,0 +1,26 @@
+filtering:
+
+    - Double spaces --> spaces
+
+    - If book - maybe cut out first & last pages (?) (could we train a cover page classifier?)
+
+    - Blank lines
+
+    - Lines shorter than N characters w no letters (or minimal amount of letters below a threshold)
+
+    - CID fonts (https://stackoverflow.com/questions/53252844/python-pdf-to-txt-only-return-cidnumber).
+    Sometimes these are only part of the text, but if they take up a certain percentage we should just bin the whole thing.
+    Example:
+
+        "which maintained contacts not least in  the  South  East  Asian  extreme  right.  To  some  extent  during  the
+        (cid:38)(cid:82)(cid:79)(cid:71)(cid:3) (cid:58)(cid:68)(cid:85)(cid:15)"
+
+    - Delete files < a certain size (failed pdfs)
+
+    - Sometimes it will just return slightly garbled text - for that split to words, check % of words in dictionary
+
+    - there are quite often full words but with spaces interspersed:
+
+        "T he  experts  from  m a ny  countries  working  on  this  project  began  by
+        laying  d o wn  the  theoretical  and  methodological  basis  for the History.
+        T h ey "
