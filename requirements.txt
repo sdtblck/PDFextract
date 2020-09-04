@@ -2,3 +2,5 @@ PyPDF2
 pdfminer.six
 argparse
 tqdm
+unicodedata2==11.0.0
+signal

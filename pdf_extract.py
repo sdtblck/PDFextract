@@ -10,11 +10,11 @@ from multiprocessing import Pool, cpu_count
 from itertools import repeat
 import argparse, tqdm, re, glob, os, istarmap
 from pdf_filter import pdf_filter
+import signal
 
 
 # ---------------------------------------------------------------------------
 # Split:
-
 
 def splitter(path):
     """
@@ -47,6 +47,7 @@ def splitter(path):
     except PdfReadError as e:
         print(f'Read failed for path {path}')
         print(e)
+    return "done"
 
 
 # ---------------------------------------------------------------------------
@@ -119,9 +120,59 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output", 
         if outfile_postclean:
             outfile.write(outfile_postclean)
 
-
     for fname in out_names:
         os.remove(f"{out_path}/{fname}.txt")
+    return "done"
+
+
+# ---------------------------------------------------------------------------
+# Utils:
+
+def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
+    import signal
+
+    class TimeoutError(Exception):
+        pass
+
+    def handler(signum, frame):
+        raise TimeoutError()
+
+    # set the timeout handler
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(timeout_duration)
+    try:
+        result = func(*args, **kwargs)
+    except TimeoutError as exc:
+        result = default
+    finally:
+        signal.alarm(0)
+
+    return result
+
+
+def human_readable_size(size, decimal_places=2):
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']:
+        if size < 1024.0 or unit == 'PiB':
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f} {unit}"
+
+
+def get_size_per_page(path):
+    """
+    gets the average size per page of a PDF document.
+    :param path: path to pdf
+    :return: size in bytes per page
+    """
+    try:
+        num_pages = PdfFileReader(path).getNumPages()
+        file_size = os.path.getsize(path)
+        return file_size / num_pages
+    except PdfReadError as e:
+        print(f'Read failed for path {path}')
+        print(e)
+        return None
+
 
 
 if __name__ == "__main__":
@@ -148,7 +199,17 @@ if __name__ == "__main__":
         print('splitdir already exists')
 
     for pdf in tqdm.tqdm(all_pdfs, total=len(all_pdfs), desc='books'):
+        sz = timeout(get_size_per_page, args=(pdf,), timeout_duration=240)
+        if sz is not None:
+            # if filesize per page is larger than a certain amount,
+            # the document is probably image-heavy and not worth parsing
+            if sz > 300000:
+                print(f'file size per page for {pdf} over cutoff of 300kb: {human_readable_size(sz)}')
+                continue
         fname = os.path.split(pdf)[1][:-4]
-        splitter(pdf)
-        path_to_folder = 'split'
-        extract_main_mp(fname, path_to_folder, args.out_path, args.filter)
+        x = timeout(splitter, args=(pdf,), timeout_duration=240)
+        if x is not None:
+            path_to_folder = 'split'
+            x = timeout(extract_main_mp, args=(fname, path_to_folder, args.out_path, args.filter), timeout_duration=240)
+        if x is None:
+            print(f'Timeout error for {fname}')

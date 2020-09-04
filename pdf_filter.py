@@ -3,6 +3,7 @@
 
 import os
 import re
+import fix_unicode
 
 
 
@@ -12,6 +13,19 @@ def listdir(x):
 
 def id(x):
     return x
+
+
+def average_word_length(text):
+    """
+    get average word length of a given text file
+
+    :param txt: string
+    :return: float of avg word length
+    """
+    n_words = len(text.split())
+    n_chars = len(text)
+    avgw = n_chars / (n_words + 1)
+    return avgw
 
 
 def mean(x):
@@ -74,6 +88,12 @@ def pdf_filter(text):
     whole_doc_mean_line_len = mean(nonzero(map(len, text.split('\n'))))
     if whole_doc_mean_line_len < 15:
         return ""
+    word_length = average_word_length(text)
+    # if average word length is too big or small, document is not worth keeping
+    if word_length > 45:
+        return ""
+    elif word_length < 2:
+        return ""
     paras = text.split('\n\n')
     out = []
     for para in paras:
@@ -92,7 +112,8 @@ def pdf_filter(text):
         #   remove leading and trailing numbers (usually pagenos)
         #   replace hyphenated words at EOL
         #   remove any remaining cid strings
-        para = remove_cid(remove_leading_and_trailing_nums(replace_hyphenated(para)))
+        #   fix any unicode / ligature related errors
+        para = fix_unicode.fix_unicode(remove_cid(remove_leading_and_trailing_nums(replace_hyphenated(para))))
         if para != '':
             # only append if not empty
             out.append(para)
