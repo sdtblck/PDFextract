@@ -111,13 +111,15 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output", 
 
     # merge text files
     # TODO: parallelize
-    with open(f"{out_path}/{out_name}.txt", 'w') as outfile:
-        outfile_preclean = ""
-        for fname in out_names:
-            with open(f"{out_path}/{fname}.txt") as infile:
-                outfile_preclean += infile.read()
-        outfile_postclean = pdf_filter(outfile_preclean) if filter else outfile_preclean
-        if outfile_postclean:
+    outfile_preclean = ""
+    for fname in out_names:
+        with open(f"{out_path}/{fname}.txt") as infile:
+            outfile_preclean += infile.read()
+
+    outfile_postclean = pdf_filter(outfile_preclean) if filter else outfile_preclean
+
+    if outfile_postclean.strip():
+        with open(f"{out_path}/{out_name}.txt", 'w') as outfile:
             outfile.write(outfile_postclean)
 
     for fname in out_names:
