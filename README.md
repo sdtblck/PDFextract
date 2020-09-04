@@ -2,7 +2,7 @@
 Extracting text from pdfs using pdfminer.six and pyPDF2
 
 # Setup
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 
 # Usage
 `python pdf_extract.py`
