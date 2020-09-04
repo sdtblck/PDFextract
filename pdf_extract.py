@@ -8,7 +8,8 @@ from pdfminer.pdfparser import PDFSyntaxError
 from PyPDF2.utils import PdfReadError
 from multiprocessing import Pool, cpu_count
 from itertools import repeat
-import argparse, tqdm, re, glob, os, istarmap, sys
+import argparse, tqdm, re, glob, os, istarmap
+from pdf_filter import pdf_filter
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +87,7 @@ def extract_text_wrapper(pdf_file, out_name="Output", out_path="output"):
         text_file.writelines(text1_output)
 
 
-def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output"):
+def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output", filter=True):
     all_pdfs = glob.glob(f"{path_to_pdfs}/*.pdf")
 
     # sorts filenames by numerical value
@@ -108,10 +109,16 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output"):
         pass
 
     # merge text files
+    # TODO: parallelize
     with open(f"{out_path}/{out_name}.txt", 'w') as outfile:
+        outfile_preclean = ""
         for fname in out_names:
             with open(f"{out_path}/{fname}.txt") as infile:
-                outfile.write(infile.read())
+                outfile_preclean += infile.read()
+        outfile_postclean = pdf_filter(outfile_preclean) if filter else outfile_preclean
+        if outfile_postclean:
+            outfile.write(outfile_postclean)
+
 
     for fname in out_names:
         os.remove(f"{out_path}/{fname}.txt")
@@ -120,14 +127,14 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output"):
 if __name__ == "__main__":
     # TODO: filtering / cleaning functions
     # TODO: program is very slow when processing a pdf with lots of images (I think it renders all images) - how to fix
-    print(sys.version)
     parser = argparse.ArgumentParser(description='CLI for PDFextract - extracts plaintext from PDF files')
     parser.add_argument('--path_to_folder', help='Path to folder containing pdfs', required=False, default='samples')
     parser.add_argument('--out_path', help='Output location for final .txt file', required=False, default='output')
+    parser.add_argument('--filter', help="whether to clean & filter resulting txt files", action='store_false')
     args = parser.parse_args()
 
     path_to_folder = args.path_to_folder
-    all_pdfs = glob.glob(f"{path_to_folder}/**/*.pdf", recursive=True)
+    all_pdfs = glob.glob(f"{path_to_folder}/**/*.pdf", recursive=True)[:100]
 
     # make outdir
     try:
@@ -144,4 +151,4 @@ if __name__ == "__main__":
         fname = os.path.split(pdf)[1][:-4]
         splitter(pdf)
         path_to_folder = 'split'
-        extract_main_mp(fname, path_to_folder, args.out_path)
+        extract_main_mp(fname, path_to_folder, args.out_path, args.filter)
