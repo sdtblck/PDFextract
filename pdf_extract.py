@@ -16,7 +16,22 @@ import traceback
 # ---------------------------------------------------------------------------
 # Split:
 
-def splitter(path):
+def splitter_mp(pdf_obj, page_num):
+    try:
+        pdf_writer = PdfFileWriter()
+        pdf_writer.addPage(pdf_obj.getPage(page_num))
+
+        output_filename = 'split/{}.pdf'.format(page_num + 1)
+
+        with open(output_filename, 'wb') as out:
+            pdf_writer.write(out)
+
+    except PdfReadError:
+        print(f'Read failed for page {page_num}')
+        traceback.print_exc()
+
+
+def splitter(p, path):
     """
     Splits multi-page PDF files into multiple individual pages.
 
@@ -31,19 +46,9 @@ def splitter(path):
     # split each page & save to separate file
     try:
         pdf = PdfFileReader(path)
-        for page in range(pdf.getNumPages()):
-            try:
-                pdf_writer = PdfFileWriter()
-                pdf_writer.addPage(pdf.getPage(page))
-
-                output_filename = 'split/{}.pdf'.format(page + 1)
-
-                with open(output_filename, 'wb') as out:
-                    pdf_writer.write(out)
-
-            except PdfReadError:
-                print(f'Read failed for page {page}')
-                traceback.print_exc()
+        for _ in tqdm.tqdm(p.istarmap(splitter_mp, zip(repeat(pdf), range(pdf.getNumPages()))), total = pdf.getNumPages(),
+                           desc="splitting", leave=False):
+            pass
     except PdfReadError:
         print(f'Read failed for path {path}')
         traceback.print_exc()
@@ -89,7 +94,7 @@ def extract_text_wrapper(pdf_file, out_name="Output", out_path="output"):
         text_file.writelines(text1_output)
 
 
-def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output", filter=True):
+def extract_main_mp(p, out_name="Output", path_to_pdfs='split', out_path="output", filter=True):
     all_pdfs = glob.glob(f"{path_to_pdfs}/*.pdf")
 
     # sorts filenames by numerical value
@@ -101,17 +106,12 @@ def extract_main_mp(out_name="Output", path_to_pdfs='split', out_path="output", 
         out = f"{out_name}_{n:06}"
         out_names.append(out)
 
-    # init pool with as many CPUs as available
-    cpu_no = cpu_count() - 1
-    p = Pool(cpu_no)
-
     # Extract text from PDFS
     for _ in tqdm.tqdm(p.istarmap(extract_text_wrapper, zip(all_pdfs, out_names, repeat(out_path))),
                        total=len(all_pdfs), desc='pages', leave=False):
         pass
 
     # merge text files
-    # TODO: parallelize
     outfile_preclean = ""
     for fname in out_names:
         with open(f"{out_path}/{fname}.txt") as infile:
@@ -190,6 +190,10 @@ if __name__ == "__main__":
     path_to_folder = args.path_to_folder
     all_pdfs = glob.glob(f"{path_to_folder}/**/*.pdf", recursive=True)[:100]
 
+    # init pool with as many CPUs as available
+    cpu_no = cpu_count() - 1
+    p = Pool(cpu_no)
+
     # make outdir
     try:
         os.makedirs(args.out_path, exist_ok=True)
@@ -210,9 +214,10 @@ if __name__ == "__main__":
                 print(f'file size per page for {pdf} over cutoff of 300kb: {human_readable_size(sz)}')
                 continue
         fname = os.path.split(pdf)[1][:-4]
-        x = timeout(splitter, args=(pdf,), timeout_duration=240)
+        # TODO: parallelize this
+        x = timeout(splitter, args=(p, pdf), timeout_duration=240)
         if x is not None:
             path_to_folder = 'split'
-            x = timeout(extract_main_mp, args=(fname, path_to_folder, args.out_path, args.filter), timeout_duration=240)
+            x = timeout(extract_main_mp, args=(p, fname, path_to_folder, args.out_path, args.filter), timeout_duration=240)
         if x is None:
             print(f'Timeout error for {fname}')
