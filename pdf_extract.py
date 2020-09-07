@@ -10,7 +10,7 @@ from multiprocessing import Pool, cpu_count
 from itertools import repeat
 import argparse, tqdm, re, glob, os, istarmap
 from pdf_filter import pdf_filter
-import signal
+import traceback
 
 
 # ---------------------------------------------------------------------------
@@ -41,12 +41,12 @@ def splitter(path):
                 with open(output_filename, 'wb') as out:
                     pdf_writer.write(out)
 
-            except PdfReadError as e:
+            except PdfReadError:
                 print(f'Read failed for page {page}')
-                print(e)
-    except PdfReadError as e:
+                traceback.print_exc()
+    except PdfReadError:
         print(f'Read failed for path {path}')
-        print(e)
+        traceback.print_exc()
     return "done"
 
 
@@ -70,8 +70,9 @@ def pdf_to_text(path):
     try:
         for page in PDFPage.get_pages(filepath, check_extractable=True):
             interpreter.process_page(page)
-    except (PDFSyntaxError, TypeError) as e:
-        print(f'ERROR: Extraction failed for {path} \n {e}')
+    except (PDFSyntaxError, TypeError):
+        print(f'ERROR: Extraction failed for {path}')
+        traceback.print_exc()
 
     text = retstr.getvalue()
     filepath.close()
@@ -170,9 +171,9 @@ def get_size_per_page(path):
         num_pages = PdfFileReader(path).getNumPages()
         file_size = os.path.getsize(path)
         return file_size / num_pages
-    except PdfReadError as e:
+    except PdfReadError:
         print(f'Read failed for path {path}')
-        print(e)
+        traceback.print_exc()
         return None
 
 
