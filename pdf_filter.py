@@ -55,6 +55,7 @@ def nonzero(x):
 def is_letter(x):
     return x in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
+
 def is_date(x):
     res = re.match(r'.*([1-3][0-9]{3})', x)
     if res is not None:
@@ -65,17 +66,22 @@ def is_date(x):
 
 def header_footer_filter(para):
     """if para is short & begins with ©, r {date}, copyright {date}, remove para"""
-    if len(para) < 50:
-        if para.strip()[0] == "©":
-            return ""
-        elif para.strip()[0] == "r":
-            second_word = para.strip().split(" ")[1]
-            if is_date(second_word):
+    try:
+        if len(para) < 50:
+            if para.strip()[0] == "©":
                 return ""
-        elif para.strip().split(" ")[0] == "copyright":
-            second_word = para.strip().split(" ")[1]
-            if is_date(second_word):
-                return ""
+            elif para.strip()[0] == "r":
+                para_words = para.strip().split(" ")
+                if len(para_words) >= 2:
+                    second_word = para_words[1]
+                    if is_date(second_word):
+                        return ""
+            elif para.strip().split(" ")[0] == "copyright":
+                second_word = para.strip().split(" ")[1]
+                if is_date(second_word):
+                    return ""
+    except:
+        return para
     return para
 
 
@@ -188,3 +194,6 @@ def pdf_filter(text, fn):
                 out.remove(i)
 
     return '\n\n'.join(out)
+
+print(["",""][1])
+print(len(["", ""]))
