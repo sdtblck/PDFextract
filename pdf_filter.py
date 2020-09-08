@@ -5,6 +5,20 @@ import os
 import re
 import fix_unicode
 
+lone_accent_dict = {"a´": "á", "e´": "é", "i´": "í", "o´": "ó", "u´": "ú",
+                    "a¨": "ä", "e¨": "ë", "i¨": "ï", "o¨": "ö", "u¨": "ü",
+                    "a^": "â", "e^": "ê", "i^": "î", "o^": "ô", "u^": "û",
+                    "a`": "à", "e`": "è", "i`": "ì", "o`": "ò", "u`": "ù",
+                    "a~": "ã", "o~":"õ", "n~":"ñ"}
+lone_accent_dict.update({k.upper(): v.upper() for k, v in lone_accent_dict.items()})
+
+
+def ditch_combining_diacritics(text):
+    for orig, repl in lone_accent_dict.items():
+        text = text.replace(orig, repl)
+    text = re.sub(r'[\u0300-\u036F]', '', text)
+    return re.sub(r'(?:\xa8|[\u02C0-\u02DF])', '', text)
+
 
 def listdir(x):
     return [x + '/' + fn for fn in os.listdir(x)]
@@ -75,8 +89,7 @@ def cid_percentage(text):
 
 
 def remove_cid(text):
-    return text.replace('\(cid:[0-9]+\)', '')
-
+    return re.sub('\(cid:[0-9]+\)', '', text)
 
 def filter_double_whitespace(text):
     return re.sub("\s\s+" , " ", text)
@@ -84,24 +97,24 @@ def filter_double_whitespace(text):
 def filter_newlines(text):
     return re.sub("\n", " ", text)
 
-def pdf_filter(text):
+def pdf_filter(text, fn):
     cid_perc = cid_percentage(text)
     # if cid_perc is larger than threshold, it's probably a latex / alt font heavy document. delete the whole thing.
     if cid_perc > .03:
-        print('ERROR: too many font errors - skipping document.')
+        print('ERROR: too many font errors - skipping {}.')
         return ""
     # if mean line len is too short, it's probably garbled, not useful, or overly latex-y
     whole_doc_mean_line_len = mean(nonzero(map(len, text.split('\n'))))
     if whole_doc_mean_line_len < 15:
-        print('ERROR: avg mean line length too short - skipping document.')
+        print('ERROR: avg mean line length too short - skipping {}.')
         return ""
     word_length = average_word_length(text)
     # if average word length is too big or small, document is not worth keeping
     if word_length > 45:
-        print('ERROR: avg word length too large - skipping document.')
+        print('ERROR: avg word length too large - skipping {}.')
         return ""
     elif word_length < 2:
-        print('ERROR: avg word length too short - skipping document.')
+        print('ERROR: avg word length too short - skipping {}.')
         return ""
     paras = text.split('\n\n')
     out = []
@@ -131,7 +144,9 @@ def pdf_filter(text):
         #   remove leading and trailing numbers (usually pagenos)
         #   remove any remaining cid strings
         #   fix any unicode / ligature related errors
-        para = fix_unicode.fix_unicode(remove_cid(remove_leading_and_trailing_nums(para)))
+        #   combine letter -> accent strings from bad decoding to combined letter/accent
+        #   e.g a´ gets converted to á
+        para = ditch_combining_diacritics(fix_unicode.fix_unicode(remove_cid(remove_leading_and_trailing_nums(para))))
         if para != '':
             # only append if not empty
             out.append(para)
@@ -142,3 +157,5 @@ def pdf_filter(text):
                 out.remove(i)
 
     return '\n\n'.join(out)
+
+
