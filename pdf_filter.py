@@ -6,7 +6,6 @@ import re
 import fix_unicode
 
 
-
 def listdir(x):
     return [x + '/' + fn for fn in os.listdir(x)]
 
@@ -79,41 +78,60 @@ def remove_cid(text):
     return text.replace('\(cid:[0-9]+\)', '')
 
 
+def filter_double_whitespace(text):
+    return re.sub("\s\s+" , " ", text)
+
+def filter_newlines(text):
+    return re.sub("\n", " ", text)
+
 def pdf_filter(text):
     cid_perc = cid_percentage(text)
     # if cid_perc is larger than threshold, it's probably a latex / alt font heavy document. delete the whole thing.
     if cid_perc > .03:
+        print('ERROR: too many font errors - skipping document.')
         return ""
     # if mean line len is too short, it's probably garbled, not useful, or overly latex-y
     whole_doc_mean_line_len = mean(nonzero(map(len, text.split('\n'))))
     if whole_doc_mean_line_len < 15:
+        print('ERROR: avg mean line length too short - skipping document.')
         return ""
     word_length = average_word_length(text)
     # if average word length is too big or small, document is not worth keeping
     if word_length > 45:
+        print('ERROR: avg word length too large - skipping document.')
         return ""
     elif word_length < 2:
+        print('ERROR: avg word length too short - skipping document.')
         return ""
     paras = text.split('\n\n')
     out = []
     for para in paras:
+
+        # replace hyphens at end of line, filter out new lines in the middle of paragraphs,
+        # and remove double whitespaces
+        para = replace_hyphenated(para)
+        para = filter_newlines(para)
+        para = filter_double_whitespace(para)
+
         # if mean line len is too short, it's probably garbled or not useful
         mean_line_len = mean(nonzero(map(len, para.split('\n'))))
         if mean_line_len < 2.:
             continue
+
         # if cid_percentage is higher than 10%, it's likely a latex heavy para and won't make sense without it
         # delete the whole para
         if cid_percentage(para) > .1:
             continue
         # not enough letters (i.e math, tables, etc)
-        if mean(map(is_letter, para)) < 0.80:
+        letterness = mean(map(is_letter, para))
+        if letterness < 0.40:
             continue
-        # final cleaning steps:
+
+        #   final cleaning steps:
         #   remove leading and trailing numbers (usually pagenos)
-        #   replace hyphenated words at EOL
         #   remove any remaining cid strings
         #   fix any unicode / ligature related errors
-        para = fix_unicode.fix_unicode(remove_cid(remove_leading_and_trailing_nums(replace_hyphenated(para))))
+        para = fix_unicode.fix_unicode(remove_cid(remove_leading_and_trailing_nums(para)))
         if para != '':
             # only append if not empty
             out.append(para)
@@ -122,4 +140,5 @@ def pdf_filter(text):
         for i in out:
             if not i:
                 out.remove(i)
+
     return '\n\n'.join(out)
