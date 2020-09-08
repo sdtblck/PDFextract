@@ -28,6 +28,5 @@ optional arguments:
   -nf, --no_filter      whether to clean & filter resulting txt files
   --size SIZE           Do not process files larger than this size per page in
                         bytes (mostly images) - default 300000
-
 ```
 
