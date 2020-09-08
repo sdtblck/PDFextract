@@ -9,7 +9,8 @@ lone_accent_dict = {"a´": "á", "e´": "é", "i´": "í", "o´": "ó", "u´": "
                     "a¨": "ä", "e¨": "ë", "i¨": "ï", "o¨": "ö", "u¨": "ü",
                     "a^": "â", "e^": "ê", "i^": "î", "o^": "ô", "u^": "û",
                     "a`": "à", "e`": "è", "i`": "ì", "o`": "ò", "u`": "ù",
-                    "a~": "ã", "o~":"õ", "n~":"ñ"}
+                    "a~": "ã", "o~": "õ", "n~": "ñ"}
+
 lone_accent_dict.update({k.upper(): v.upper() for k, v in lone_accent_dict.items()})
 
 
@@ -60,7 +61,7 @@ def all_equal(x):
 
 
 def replace_hyphenated(text):
-    return re.sub(r'-\n(\w+ *)', r'\1\n', text)
+    return re.sub(r'-[?\s]\n{1,2}(\w+ *)', r'\1\n', text)
 
 
 def remove_leading_and_trailing_nums(text):
@@ -101,28 +102,29 @@ def pdf_filter(text, fn):
     cid_perc = cid_percentage(text)
     # if cid_perc is larger than threshold, it's probably a latex / alt font heavy document. delete the whole thing.
     if cid_perc > .03:
-        print('ERROR: too many font errors - skipping {}.')
+        print('ERROR: too many font errors - skipping {}.'.format(fn))
         return ""
     # if mean line len is too short, it's probably garbled, not useful, or overly latex-y
     whole_doc_mean_line_len = mean(nonzero(map(len, text.split('\n'))))
     if whole_doc_mean_line_len < 15:
-        print('ERROR: avg mean line length too short - skipping {}.')
+        print('ERROR: avg mean line length too short - skipping {}.'.format(fn))
         return ""
     word_length = average_word_length(text)
     # if average word length is too big or small, document is not worth keeping
     if word_length > 45:
-        print('ERROR: avg word length too large - skipping {}.')
+        print('ERROR: avg word length too large - skipping {}.'.format(fn))
         return ""
     elif word_length < 2:
-        print('ERROR: avg word length too short - skipping {}.')
+        print('ERROR: avg word length too short - skipping {}.'.format(fn))
         return ""
+    # replace hyphens at end of lines and paragraphs
+    text = replace_hyphenated(text)
     paras = text.split('\n\n')
     out = []
     for para in paras:
 
-        # replace hyphens at end of line, filter out new lines in the middle of paragraphs,
+        # filter out new lines in the middle of paragraphs,
         # and remove double whitespaces
-        para = replace_hyphenated(para)
         para = filter_newlines(para)
         para = filter_double_whitespace(para)
 
@@ -157,5 +159,3 @@ def pdf_filter(text, fn):
                 out.remove(i)
 
     return '\n\n'.join(out)
-
-
