@@ -16,7 +16,7 @@ E.G
 ## Full usage details:
 ```
 usage: pdf_extract.py [-h] [--path_to_folder PATH_TO_FOLDER]
-                      [--out_path OUT_PATH] [--filter]
+                      [--out_path OUT_PATH] [-nf] [--size SIZE]
 
 CLI for PDFextract - extracts plaintext from PDF files
 
@@ -25,6 +25,9 @@ optional arguments:
   --path_to_folder PATH_TO_FOLDER
                         Path to folder containing pdfs
   --out_path OUT_PATH   Output location for final .txt file
-  --filter              whether to clean & filter resulting txt files
+  -nf, --no_filter      whether to clean & filter resulting txt files
+  --size SIZE           Do not process files larger than this size per page in
+                        bytes (mostly images) - default 300000
+
 ```
 
