@@ -61,7 +61,8 @@ def all_equal(x):
 
 
 def replace_hyphenated(text):
-    return re.sub(r'-[?\s]\n{1,2}(\w+ *)', r'\1\n', text)
+    text = re.sub(r'-[?\s]\n{1,2}(\w+ *)', r'\1\n', text)
+    return re.sub(r'-\s{1,2}(\w+ *)', r'\1', text)
 
 
 def remove_leading_and_trailing_nums(text):
