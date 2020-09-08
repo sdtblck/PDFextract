@@ -194,6 +194,3 @@ def pdf_filter(text, fn):
                 out.remove(i)
 
     return '\n\n'.join(out)
-
-print(["",""][1])
-print(len(["", ""]))
