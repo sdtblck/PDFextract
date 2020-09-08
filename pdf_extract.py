@@ -179,13 +179,12 @@ def get_size_per_page(path):
 
 
 if __name__ == "__main__":
-    # TODO: filtering / cleaning functions
-    # TODO: program is very slow when processing a pdf with lots of images (I think it renders all images) - how to fix
     parser = argparse.ArgumentParser(description='CLI for PDFextract - extracts plaintext from PDF files')
     parser.add_argument('--path_to_folder', help='Path to folder containing pdfs', required=False, default='samples')
     parser.add_argument('--out_path', help='Output location for final .txt file', required=False, default='output')
-    parser.add_argument('-nf', '--no_filter', help="whether to clean & filter resulting txt files", action='store_true')
-    parser.add_argument('--size', help="Do not process files larger than this size in bytes (mostly images)", type=int, default=300000)
+    parser.add_argument('-nf', '--no_filter', help="turn off cleaning & filtering resulting txt files", action='store_true')
+    parser.add_argument('--size', help="Do not process files larger than this size per page in bytes "
+                                       "(mostly images) - default 300000", type=int, default=300000)
 
     args = parser.parse_args()
 
@@ -216,11 +215,9 @@ if __name__ == "__main__":
                 print(f'file size per page for {pdf} over cutoff of {human_readable_size(args.size)}: {human_readable_size(sz)}')
                 continue
         fname = os.path.split(pdf)[1][:-4]
-        # TODO: parallelize this
         x = timeout(splitter, args=(p, pdf), timeout_duration=240)
         if x is not None:
             x = timeout(extract_main_mp, args=(p, fname, ".tmp", args.out_path, args.no_filter), timeout_duration=240)
         if x is None:
             print(f'Timeout error for {fname}')
-
     shutil.rmtree(".tmp")

@@ -25,7 +25,7 @@ optional arguments:
   --path_to_folder PATH_TO_FOLDER
                         Path to folder containing pdfs
   --out_path OUT_PATH   Output location for final .txt file
-  -nf, --no_filter      whether to clean & filter resulting txt files
+  -nf, --no_filter      turn off cleaning & filtering resulting txt files
   --size SIZE           Do not process files larger than this size per page in
                         bytes (mostly images) - default 300000
 ```
