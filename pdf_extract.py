@@ -11,7 +11,7 @@ from itertools import repeat
 import argparse, tqdm, re, glob, os, istarmap
 from pdf_filter import pdf_filter
 import traceback
-
+import shutil
 
 # ---------------------------------------------------------------------------
 # Split:
@@ -21,7 +21,7 @@ def splitter_mp(pdf_obj, page_num):
         pdf_writer = PdfFileWriter()
         pdf_writer.addPage(pdf_obj.getPage(page_num))
 
-        output_filename = 'split/{}.pdf'.format(page_num + 1)
+        output_filename = '.tmp/{}.pdf'.format(page_num + 1)
 
         with open(output_filename, 'wb') as out:
             pdf_writer.write(out)
@@ -39,7 +39,7 @@ def splitter(p, path):
     :return:
     """
     # remove all old splits
-    splits = glob.glob('split/*.pdf')
+    splits = glob.glob('.tmp/*.pdf')
     for split_pdf in splits:
         os.remove(split_pdf)
 
@@ -86,7 +86,7 @@ def pdf_to_text(path):
     return text
 
 
-def extract_text_wrapper(pdf_file, out_name="Output", out_path="output"):
+def extract_text_wrapper(pdf_file, out_name="Output", out_path=".tmp"):
     text_output = pdf_to_text(pdf_file)  # Extract text with PDF_to_text Function call
     text1_output = text_output.decode("utf-8")  # Decode result from bytes to text
     # Save extracted text to file
@@ -94,7 +94,7 @@ def extract_text_wrapper(pdf_file, out_name="Output", out_path="output"):
         text_file.writelines(text1_output)
 
 
-def extract_main_mp(p, out_name="Output", path_to_pdfs='split', out_path="output", filter=True):
+def extract_main_mp(p, out_name="Output", path_to_pdfs='.tmp', out_path="output", no_filter=False):
     all_pdfs = glob.glob(f"{path_to_pdfs}/*.pdf")
 
     # sorts filenames by numerical value
@@ -107,24 +107,24 @@ def extract_main_mp(p, out_name="Output", path_to_pdfs='split', out_path="output
         out_names.append(out)
 
     # Extract text from PDFS
-    for _ in tqdm.tqdm(p.istarmap(extract_text_wrapper, zip(all_pdfs, out_names, repeat(out_path))),
+    for _ in tqdm.tqdm(p.istarmap(extract_text_wrapper, zip(all_pdfs, out_names, repeat(".tmp"))),
                        total=len(all_pdfs), desc='pages', leave=False):
         pass
 
     # merge text files
     outfile_preclean = ""
     for fname in out_names:
-        with open(f"{out_path}/{fname}.txt") as infile:
+        with open(f".tmp/{fname}.txt") as infile:
             outfile_preclean += infile.read()
 
-    outfile_postclean = pdf_filter(outfile_preclean, fn=fname) if filter else outfile_preclean
+    outfile_postclean = outfile_preclean if no_filter else pdf_filter(outfile_preclean, fn=out_name)
 
     if outfile_postclean.strip():
         with open(f"{out_path}/{out_name}.txt", 'w') as outfile:
             outfile.write(outfile_postclean)
 
     for fname in out_names:
-        os.remove(f"{out_path}/{fname}.txt")
+        os.remove(f".tmp/{fname}.txt")
     return "done"
 
 
@@ -184,11 +184,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CLI for PDFextract - extracts plaintext from PDF files')
     parser.add_argument('--path_to_folder', help='Path to folder containing pdfs', required=False, default='samples')
     parser.add_argument('--out_path', help='Output location for final .txt file', required=False, default='output')
-    parser.add_argument('--filter', help="whether to clean & filter resulting txt files", action='store_false')
+    parser.add_argument('-nf', '--no_filter', help="whether to clean & filter resulting txt files", action='store_true')
+    parser.add_argument('--size', help="Do not process files larger than this size in bytes (mostly images)", type=int, default=300000)
+
     args = parser.parse_args()
 
     path_to_folder = args.path_to_folder
-    all_pdfs = glob.glob(f"{path_to_folder}/**/*.pdf", recursive=True)[:100]
+    all_pdfs = glob.glob(f"{path_to_folder}/**/*.pdf", recursive=True)
 
     # init pool with as many CPUs as available
     cpu_no = cpu_count() - 1
@@ -201,23 +203,24 @@ if __name__ == "__main__":
         print('Outdir already exists')
 
     try:
-        os.makedirs('split', exist_ok=True)
+        os.makedirs('.tmp', exist_ok=True)
     except FileExistsError:
-        print('splitdir already exists')
+        print('.tmp dir already exists')
 
     for pdf in tqdm.tqdm(all_pdfs, total=len(all_pdfs), desc='books'):
         sz = timeout(get_size_per_page, args=(pdf,), timeout_duration=240)
         if sz is not None:
             # if filesize per page is larger than a certain amount,
             # the document is probably image-heavy and not worth parsing
-            if sz > 300000:
-                print(f'file size per page for {pdf} over cutoff of 300kb: {human_readable_size(sz)}')
+            if sz > args.size:
+                print(f'file size per page for {pdf} over cutoff of {human_readable_size(args.size)}: {human_readable_size(sz)}')
                 continue
         fname = os.path.split(pdf)[1][:-4]
         # TODO: parallelize this
         x = timeout(splitter, args=(p, pdf), timeout_duration=240)
         if x is not None:
-            path_to_folder = 'split'
-            x = timeout(extract_main_mp, args=(p, fname, path_to_folder, args.out_path, args.filter), timeout_duration=240)
+            x = timeout(extract_main_mp, args=(p, fname, ".tmp", args.out_path, args.no_filter), timeout_duration=240)
         if x is None:
             print(f'Timeout error for {fname}')
+
+    shutil.rmtree(".tmp")
